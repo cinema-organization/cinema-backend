@@ -23,7 +23,7 @@ app.use('/api/stats', require('./routes/statsRoutes'));
 
 // Route de test
 app.get("/", (req, res) => {
-  res.send("Bienvenue dans le backend du système de cinéma 🎬");
+  res.send("Bienvenue dans le backend du système de cinéma 🎬🎬🎬");
 });
 app.use((req, res) => {
   res.status(404).json({ message: "Route non trouvée ❌" });

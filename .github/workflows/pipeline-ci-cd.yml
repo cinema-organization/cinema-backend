@@ -48,6 +48,7 @@ jobs:
           password: ${{ secrets.PASSWORD }}
           script: |
             cd ${{ env.PROJECT_PATH }}
-            sudo docker compose -p cinema pull
-            sudo docker compose -p cinema down
-            sudo docker compose -p cinema up -d
+              sudo docker compose -p cinema stop backend-api-cinema
+              sudo docker compose -p cinema rm -f backend-api-cinema
+              sudo docker compose -p cinema pull backend-api-cinema
+              sudo docker compose -p cinema up -d backend-api-cinema
