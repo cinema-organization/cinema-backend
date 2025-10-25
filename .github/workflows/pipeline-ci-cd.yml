@@ -2,7 +2,7 @@ name: Back End Deployment
 on:
   push:
     branches:
-      - dev
+      - main
 
 env:
   BUILD_NUMBER: ${{ github.run_number }}
