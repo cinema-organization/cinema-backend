@@ -1,0 +1,66 @@
+name: Back End Deployment
+on:
+  push:
+    branches:
+      - dev
+
+env:
+  BUILD_NUMBER: ${{ github.run_number }}
+  IMAGE_NAME: ${{ vars.DOCKERHUB_USERNAME }}/api-cinema
+  PROJECT_PATH: /home/user/devops-script-cinema/backend/dev
+  DOCKER_SERVICE: backend-api 
+
+jobs:
+  Unit-Test:
+    runs-on: ubuntu-latest
+    steps: 
+      - name: checkout code
+        uses: actions/checkout@v5
+
+      - name: Install Dependencies
+        run: npm i
+
+      - name: run unit Test
+        run: npm run test
+
+  Build_And_Push:
+    runs-on: ubuntu-latest
+    needs: Unit-Test
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v5
+    
+      - name: Build Docker Image
+        run: docker build -t ${{env.IMAGE_NAME}} .
+
+      - name: Tag Docker Image with version
+        run: |
+          docker tag ${{env.IMAGE_NAME}} ${{env.IMAGE_NAME}}:v${{env.BUILD_NUMBER}}
+          docker tag ${{env.IMAGE_NAME}} ${{env.IMAGE_NAME}}:latest
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push Docker images
+        run: |
+          docker push ${{env.IMAGE_NAME}}:v${{env.BUILD_NUMBER}}
+          docker push ${{env.IMAGE_NAME}}:latest
+
+  Deployment:
+    runs-on: ubuntu-latest
+    needs: Build_And_Push
+    steps:
+      - name: ssh connect and deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          script: |
+            cd ${{ env.PROJECT_PATH }}
+            sudo docker compose pull
+            sudo docker compose down
+            sudo docker compose up -d

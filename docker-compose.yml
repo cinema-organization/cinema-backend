@@ -1,0 +1,39 @@
+services:
+  #backend api
+  backend-api:
+    image: dhouhalamine/api-cinema 
+    depends_on:
+      - mongo
+    container_name: backend-api-cinema
+    env_file:
+      - .env.docker
+    build: .
+    ports:
+      - "5000:5000"
+
+
+  #database mongo- db
+  mongo:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root 
+      MONGO_INITDB_ROOT_PASSWORD: admin 
+    volumes:
+      - mongo_data:/data/db
+
+      
+  #mongo express ui
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://root:admin@mongo:27017/
+      ME_CONFIG_BASICAUTH_ENABLED: true
+      ME_CONFIG_BASICAUTH_USERNAME: mongoexpressuser
+      ME_CONFIG_BASICAUTH_PASSWORD: mongoexpresspass
+
+volumes:
+  mongo_data:
