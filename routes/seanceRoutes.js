@@ -7,10 +7,13 @@ const {
   getDisponibilite,
   createSeance,
   updateSeance,
-  deleteSeance
+  deleteSeance,
+  updateSeancesStatus
 } = require("../controllers/seanceController");
 const { proteger } = require("../middleware/authMiddleware");
 const { adminOnly } = require("../middleware/roleMiddleware");
+
+router.get('/update-status', updateSeancesStatus);
 
 // Routes publiques
 router.get("/", getAllSeances);

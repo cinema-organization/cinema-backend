@@ -1,4 +1,4 @@
-// controllers/seanceController.js
+// controllers/seanceController.js - VERSION CORRIGÉE
 const Seance = require("../models/seanceModel");
 const Film = require("../models/filmModel");
 const Salle = require("../models/salleModel");
@@ -20,16 +20,19 @@ exports.getAllSeances = async (req, res) => {
       .populate("salle_id")
       .sort({ date: 1, heure: 1 });
 
-    // Mettre à jour le statut de chaque séance
-    for (let seance of seances) {
-      seance.calculerStatut();
-      await seance.save();
-    }
+    // ✅ CORRECTION : Calculer le statut sans sauvegarder
+    const seancesAvecStatut = seances.map(seance => {
+      const statutCalcule = calculerStatutSeance(seance);
+      return {
+        ...seance.toObject(),
+        statut: statutCalcule
+      };
+    });
 
     res.json({
       success: true,
-      count: seances.length,
-      data: seances
+      count: seancesAvecStatut.length,
+      data: seancesAvecStatut
     });
   } catch (error) {
     res.status(500).json({ 
@@ -53,13 +56,16 @@ exports.getSeanceById = async (req, res) => {
       });
     }
 
-    // Mettre à jour le statut
-    seance.calculerStatut();
-    await seance.save();
+    // ✅ CORRECTION : Calculer sans sauvegarder
+    const statutCalcule = calculerStatutSeance(seance);
+    const seanceAvecStatut = {
+      ...seance.toObject(),
+      statut: statutCalcule
+    };
 
     res.json({
       success: true,
-      data: seance
+      data: seanceAvecStatut
     });
   } catch (error) {
     res.status(500).json({ 
@@ -131,8 +137,6 @@ exports.createSeance = async (req, res) => {
     }
 
     const seance = new Seance({ film_id, salle_id, date, heure });
-
-    // La validation du chevauchement se fait dans le pre-save hook
     await seance.save();
 
     const seanceComplete = await Seance.findById(seance._id)
@@ -163,15 +167,6 @@ exports.updateSeance = async (req, res) => {
       });
     }
 
-    // Vérifier que la séance est à venir
-    seance.calculerStatut();
-    if (seance.statut === "terminée") {
-      return res.status(400).json({
-        success: false,
-        message: "Impossible de modifier une séance terminée"
-      });
-    }
-
     const { film_id, salle_id, date, heure } = req.body;
 
     // Mettre à jour les champs
@@ -180,7 +175,6 @@ exports.updateSeance = async (req, res) => {
     if (date) seance.date = date;
     if (heure) seance.heure = heure;
 
-    // La validation du chevauchement se fait dans le pre-save hook
     await seance.save();
 
     const seanceMiseAJour = await Seance.findById(seance._id)
@@ -242,42 +236,52 @@ exports.deleteSeance = async (req, res) => {
   }
 };
 
-// 🔄 Mise à jour automatique des statuts de séances
-const moment = require("moment");
-
-exports.updateSeancesStatus = async () => {
+// 🔄 Mise à jour automatique des statuts de séances (PUBLIC)
+exports.updateSeancesStatus = async (req, res) => {
   try {
     const seances = await Seance.find();
-    const now = moment();
-    const today = now.format("YYYY-MM-DD");
+    const maintenant = new Date();
+    let updatedCount = 0;
 
     for (let seance of seances) {
-      const seanceDate = moment(seance.date).format("YYYY-MM-DD");
-      const [h, m] = seance.heure.split(":");
-      const seanceTime = moment(seance.date).set({ hour: h, minute: m });
-
-      // 🕒 Avant la séance
-      if (seanceDate > today) {
-        seance.statut = "à venir";
+      const [heures, minutes] = seance.heure.split(':').map(Number);
+      const dateHeureSeance = new Date(seance.date);
+      dateHeureSeance.setHours(heures, minutes, 0, 0);
+      
+      const nouveauStatut = dateHeureSeance < maintenant ? "terminée" : "à venir";
+      
+      // ✅ CORRECTION : Utiliser updateOne pour éviter les validations
+      if (seance.statut !== nouveauStatut) {
+        await Seance.updateOne(
+          { _id: seance._id },
+          { $set: { statut: nouveauStatut } }
+        );
+        updatedCount++;
       }
-      // 🎬 Jour de la séance
-      else if (seanceDate === today) {
-        if (seanceTime.isAfter(now)) {
-          seance.statut = "à venir";
-        } else {
-          seance.statut = "terminée";
-        }
-      }
-      // 🌙 Après la journée → on garde en "terminée"
-      else {
-        seance.statut = "terminée";
-      }
-
-      await seance.save();
     }
 
-    console.log("✅ Statuts des séances mis à jour automatiquement");
+    console.log(`✅ ${updatedCount} séances mises à jour automatiquement`);
+    
+    res.json({
+      success: true,
+      message: `${updatedCount} séances mises à jour`,
+      updated: updatedCount
+    });
   } catch (error) {
-    console.error("❌ Erreur lors de la mise à jour des statuts :", error.message);
+    console.error("❌ Erreur mise à jour séances:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
+
+// ✅ FONCTION UTILITAIRE : Calculer statut sans sauvegarder
+function calculerStatutSeance(seance) {
+  const maintenant = new Date();
+  const [heures, minutes] = seance.heure.split(':').map(Number);
+  const dateHeureSeance = new Date(seance.date);
+  dateHeureSeance.setHours(heures, minutes, 0, 0);
+  
+  return dateHeureSeance < maintenant ? "terminée" : "à venir";
+}
