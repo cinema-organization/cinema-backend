@@ -241,3 +241,43 @@ exports.deleteSeance = async (req, res) => {
     });
   }
 };
+
+// 🔄 Mise à jour automatique des statuts de séances
+const moment = require("moment");
+
+exports.updateSeancesStatus = async () => {
+  try {
+    const seances = await Seance.find();
+    const now = moment();
+    const today = now.format("YYYY-MM-DD");
+
+    for (let seance of seances) {
+      const seanceDate = moment(seance.date).format("YYYY-MM-DD");
+      const [h, m] = seance.heure.split(":");
+      const seanceTime = moment(seance.date).set({ hour: h, minute: m });
+
+      // 🕒 Avant la séance
+      if (seanceDate > today) {
+        seance.statut = "à venir";
+      }
+      // 🎬 Jour de la séance
+      else if (seanceDate === today) {
+        if (seanceTime.isAfter(now)) {
+          seance.statut = "à venir";
+        } else {
+          seance.statut = "terminée";
+        }
+      }
+      // 🌙 Après la journée → on garde en "terminée"
+      else {
+        seance.statut = "terminée";
+      }
+
+      await seance.save();
+    }
+
+    console.log("✅ Statuts des séances mis à jour automatiquement");
+  } catch (error) {
+    console.error("❌ Erreur lors de la mise à jour des statuts :", error.message);
+  }
+};

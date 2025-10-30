@@ -83,13 +83,16 @@ seanceSchema.methods.verifierChevauchement = async function () {
 
 // Avant sauvegarde : mettre à jour statut et vérifier chevauchement
 seanceSchema.pre("save", async function (next) {
-  this.calculerStatut();
-
-  const chevauchement = await this.verifierChevauchement();
-  if (chevauchement) {
-    return next(new Error("Chevauchement détecté avec une autre séance dans cette salle."));
+  // Ne calculer le statut que si c'est une nouvelle séance ou si la date/heure change
+  if (this.isModified('date') || this.isModified('heure') || this.isNew) {
+    this.calculerStatut();
+    
+    const chevauchement = await this.verifierChevauchement();
+    if (chevauchement) {
+      return next(new Error("Chevauchement détecté avec une autre séance dans cette salle."));
+    }
   }
-
+  
   next();
 });
 
