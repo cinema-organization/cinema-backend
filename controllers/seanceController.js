@@ -259,8 +259,6 @@ exports.updateSeancesStatus = async (req, res) => {
         updatedCount++;
       }
     }
-
-    console.log(`✅ ${updatedCount} séances mises à jour automatiquement`);
     
     res.json({
       success: true,

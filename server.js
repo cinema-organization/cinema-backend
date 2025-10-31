@@ -34,8 +34,6 @@ app.use((req, res) => {
 
 // 🚀 Tâche planifiée (cron job)
 cron.schedule("*/5 * * * *", async () => {
-  console.log("⏰ Vérification automatique des séances...");
-
   try {
     const now = new Date();
     const today = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
@@ -57,7 +55,6 @@ cron.schedule("*/5 * * * *", async () => {
       { $set: { statut: "terminée" } }
     );
 
-    console.log(`✅ ${result.modifiedCount} séances mises à jour (terminées)`);
   } catch (error) {
     console.error("❌ Erreur lors de la mise à jour des statuts :", error.message);
   }
