@@ -31,28 +31,46 @@ exports.getFilmById = async (req, res) => {
       });
     }
 
-    // Récupérer les séances à venir pour ce film
-    const seances = await Seance.find({ 
-      film_id: req.params.id,
-      statut: "à venir"
-    })
-    .populate("salle_id")
-    .sort({ date: 1, heure: 1 });
+    // Fix: Charge TOUTES les séances (sans filtre statut - frontend gère visibilité)
+    const seances = await Seance.find({ film_id: req.params.id })
+      .populate("salle_id")
+      .sort({ date: 1, heure: 1 });
+
+    // Calcul statut dynamique pour toutes (y compris terminées)
+    const seancesAvecStatut = seances.map(seance => {
+      const statutCalcule = calculerStatutSeance(seance);  // Utilise fonction backend
+      return {
+        ...seance.toObject(),
+        statut: statutCalcule
+      };
+    });
+
 
     res.json({
       success: true,
       data: {
         film,
-        seances
+        seances: seancesAvecStatut  // Retourne avec statuts recalculés
       }
     });
   } catch (error) {
+    console.error("Erreur getFilmById:", error);  // Debug backend
     res.status(500).json({ 
       success: false, 
       message: error.message 
     });
   }
 };
+
+// Fonction utilitaire (si pas dans model)
+function calculerStatutSeance(seance) {
+  const maintenant = new Date();
+  const [heures, minutes] = seance.heure.split(':').map(Number);
+  const dateHeureSeance = new Date(seance.date);
+  dateHeureSeance.setHours(heures, minutes, 0, 0);
+  
+  return dateHeureSeance < maintenant ? "terminée" : "à venir";
+}
 
 // POST /api/films - Créer un film (ADMIN)
 exports.createFilm = async (req, res) => {
