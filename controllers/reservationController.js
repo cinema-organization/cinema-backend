@@ -124,7 +124,7 @@ exports.createReservation = async (req, res) => {
   }
 };
 
-// PUT /api/reservations/:id/annuler - Annuler une réservation (USER)
+// PUT /api/reservations/:id/annuler - Annuler une réservation (USER ou ADMIN)
 exports.annulerReservation = async (req, res) => {
   try {
     const reservation = await Reservation.findById(req.params.id);
@@ -133,6 +133,17 @@ exports.annulerReservation = async (req, res) => {
       return res.status(404).json({ 
         success: false, 
         message: "Réservation introuvable" 
+      });
+    }
+
+    // ✅ Autoriser si c’est le propriétaire OU un admin
+    if (
+      reservation.user_id.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Vous ne pouvez annuler que vos propres réservations"
       });
     }
 
